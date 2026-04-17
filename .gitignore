@@ -1,13 +1,20 @@
+# ======================
 # macOS
+# ======================
 .DS_Store
 
-# Python
+# ======================
+# Python / Backend
+# ======================
 backend/venv/
 backend/__pycache__/
 backend/.env
+backend/*.pyc
 backend/**/*.pyc
 
+# ======================
 # Flutter / Dart
+# ======================
 mobile_app/.dart_tool/
 mobile_app/.packages
 mobile_app/build/
@@ -15,13 +22,18 @@ mobile_app/.flutter-plugins
 mobile_app/.flutter-plugins-dependencies
 mobile_app/pubspec.lock
 
+# ======================
 # Android
+# ======================
 mobile_app/android/.gradle/
+mobile_app/android/app/build/
 mobile_app/android/app/debug/
 mobile_app/android/app/profile/
 mobile_app/android/app/release/
 
-# iOS
+# ======================
+# iOS / CocoaPods
+# ======================
 mobile_app/ios/Pods/
 mobile_app/ios/.symlinks/
 mobile_app/ios/Flutter/.last_build_id
@@ -29,8 +41,14 @@ mobile_app/ios/Flutter/ephemeral/
 mobile_app/build/ios/
 mobile_app/build/macos/
 
+# ======================
 # Xcode
+# ======================
 *.xcuserstate
 *.xcworkspace/xcuserdata/
 *.xcodeproj/xcuserdata/
 
+# ======================
+# Logs
+# ======================
+*.log

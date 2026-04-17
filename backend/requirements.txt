@@ -20,3 +20,17 @@ urllib3==2.6.3
 uvicorn==0.44.0
 Pillow==11.2.1
 pytesseract==0.3.13
+fastapi
+uvicorn
+python-dotenv
+requests
+pillow
+pytesseract
+pypdf
+python-docx
+openpyxl
+xlrd
+pandas
+pdf2image
+python-multipart
+pydantic

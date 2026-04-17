@@ -1,0 +1,86 @@
+# 🧠 Health AI — Анализ медицинских данных
+
+## 📌 Описание проекта
+
+Health AI — это мобильное приложение с backend-сервисом, которое позволяет:
+
+* загрузить анализ (PDF / фото)
+* автоматически извлечь текст
+* выполнить предварительный медицинский разбор с помощью AI
+* получить структурированный результат
+
+---
+
+## 🧩 Архитектура
+
+Frontend:
+
+* Flutter (iOS / Android)
+
+Backend:
+
+* FastAPI (Python)
+* OCR (Tesseract)
+* AI (DeepSeek API)
+
+---
+
+## 🚀 Быстрый запуск
+
+### Backend
+
+```bash
+cd backend
+python3 -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+
+uvicorn app.main:app --reload
+```
+
+Создать `.env`:
+
+```env
+DEEPSEEK_API_KEY=your_key_here
+DEEPSEEK_API_URL=https://api.deepseek.com/chat/completions
+```
+
+---
+
+### Mobile App
+
+```bash
+cd mobile_app
+flutter pub get
+flutter run
+```
+
+---
+
+## 📂 Основные модули
+
+### Backend
+
+* `ocr_service.py` — извлечение текста
+* `deepseek_service.py` — AI анализ
+* `routes.py` — API
+
+### Mobile
+
+* `upload_screen.dart` — основной экран
+* `analysis_result.dart` — модель данных
+* `analysis_api_service.dart` — работа с backend
+
+---
+
+## ⚠️ Важно
+
+* Результат не является диагнозом
+* Используется только для предварительной оценки
+* Требуется консультация врача
+
+---
+
+## 👨‍💻 Автор
+
+Gleb Svyatov
