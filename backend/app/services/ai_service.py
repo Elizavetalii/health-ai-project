@@ -1,3 +1,5 @@
+# app/services/ai_service.py
+
 # requests — библиотека для HTTP-запросов.
 # Она нужна, чтобы отправлять запрос к внешнему AI API (DeepSeek)
 # и получать от него ответ.
@@ -25,11 +27,13 @@ def analyze_with_deepseek(
     Отправляет текст анализа в DeepSeek и пытается получить
     корректный JSON-ответ.
 
-    Если:
-    - ключ не задан,
-    - запрос завершился ошибкой,
-    - модель вернула невалидный JSON,
-    функция возвращает None.
+    Возвращает:
+    - dict, если модель успешно ответила и JSON удалось извлечь
+    - None, если:
+      - ключ не задан,
+      - запрос завершился ошибкой,
+      - модель вернула невалидный JSON,
+      - структура ответа оказалась неожиданной
     """
 
     print("analyze_with_deepseek called")
@@ -56,11 +60,11 @@ def analyze_with_deepseek(
 
     # Тело запроса к модели.
     #
-    # ВАЖНО:
-    # response_format={"type": "json_object"} включает JSON Output mode
-    # у DeepSeek, чтобы модель возвращала именно валидный JSON.
+    # response_format={"type": "json_object"} просит модель
+    # вернуть именно JSON-объект.
     #
-    # max_tokens задаём явно, чтобы снизить риск обрезанного JSON.
+    # temperature держим низкой, чтобы ответ был стабильнее.
+    # max_tokens увеличиваем, чтобы снизить риск обрыва JSON.
     payload = {
         "model": "deepseek-chat",
         "messages": [
@@ -76,7 +80,7 @@ def analyze_with_deepseek(
         "temperature": 0.2,
         "max_tokens": 4000,
         "response_format": {
-            "type": "json_object"
+            "type": "json_object",
         },
     }
 
@@ -100,16 +104,40 @@ def analyze_with_deepseek(
 
         # Преобразуем JSON-ответ сервера в словарь Python.
         data = response.json()
-
         print("DeepSeek HTTP response parsed successfully")
+
+        # Проверяем, что в ответе вообще есть choices.
+        choices = data.get("choices")
+        if not isinstance(choices, list) or not choices:
+            print("DeepSeek response does not contain valid choices")
+            return None
+
+        first_choice = choices[0]
+        if not isinstance(first_choice, dict):
+            print("DeepSeek first choice has invalid format")
+            return None
 
         # Логируем finish_reason, чтобы понимать,
         # не был ли ответ обрезан по длине.
-        finish_reason = data["choices"][0].get("finish_reason")
+        finish_reason = first_choice.get("finish_reason")
         print("DeepSeek finish_reason:", finish_reason)
 
+        # Если ответ был обрезан по длине,
+        # есть высокий риск неполного JSON.
+        if finish_reason == "length":
+            print("DeepSeek response was truncated because of token limit")
+            return None
+
+        message = first_choice.get("message")
+        if not isinstance(message, dict):
+            print("DeepSeek message has invalid format")
+            return None
+
         # Достаём основной текст ответа модели.
-        content = data["choices"][0]["message"]["content"]
+        content = message.get("content")
+        if not isinstance(content, str) or not content.strip():
+            print("DeepSeek content is empty or invalid")
+            return None
 
         print("Model content received (first 1000 chars):")
         print(content[:1000])

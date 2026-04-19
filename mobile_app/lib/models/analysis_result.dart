@@ -12,8 +12,110 @@
 // Это даёт:
 // - более понятный код,
 // - меньше ошибок в ключах JSON,
-// - удобную работу с данными в UI.
+// - удобную работу с данными в UI,
+// - более безопасный парсинг ответа.
+//
+// ВАЖНО:
+// AI-ответы могут быть не всегда идеально одинаковыми.
+// Поэтому ниже добавлены безопасные helper-функции,
+// которые защищают приложение от падений,
+// если backend или AI вернул неожиданную структуру.
 // ------------------------------------------------------------
+
+/// ------------------------------------------------------------
+/// ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ
+/// ------------------------------------------------------------
+
+/// Безопасно превращает любое значение в строку.
+///
+/// Если значение null — вернётся пустая строка.
+/// Если пришло число, bool и т.д. — оно будет превращено в строку.
+String _asString(dynamic value) {
+  if (value == null) return "";
+  return value.toString();
+}
+
+/// Безопасно превращает любое значение в int.
+///
+/// AI иногда может вернуть:
+/// - int
+/// - double
+/// - строку вроде "70"
+/// - null
+///
+/// Эта функция старается аккуратно привести значение к целому числу.
+int _asInt(dynamic value) {
+  if (value == null) return 0;
+
+  if (value is int) return value;
+
+  if (value is double) return value.toInt();
+
+  if (value is String) {
+    return int.tryParse(value) ?? 0;
+  }
+
+  return 0;
+}
+
+/// Безопасно превращает любое значение в bool.
+///
+/// Если значение не bool, вернётся false.
+bool _asBool(dynamic value) {
+  if (value is bool) return value;
+  return false;
+}
+
+/// Безопасно превращает значение в Map<String, dynamic>.
+///
+/// Это особенно важно, когда backend прислал:
+/// - корректный Map
+/// - null
+/// - список или строку по ошибке
+///
+/// Если значение не является Map — возвращается пустой объект.
+Map<String, dynamic> _asMap(dynamic value) {
+  if (value is Map) {
+    return Map<String, dynamic>.from(value);
+  }
+  return {};
+}
+
+/// Безопасно превращает значение в список строк.
+///
+/// Если пришёл не список — вернётся пустой список.
+/// Если внутри списка есть не-строки, они будут приведены к строке.
+List<String> _asStringList(dynamic value) {
+  if (value is! List) return [];
+  return value.map((e) => e.toString()).toList();
+}
+
+/// Безопасно превращает значение в список моделей.
+///
+/// Используется для случаев, когда ожидается List<Map>,
+/// но AI может вернуть:
+/// - пустой список
+/// - null
+/// - список строк
+/// - смешанные значения
+///
+/// Мы берём только те элементы, которые действительно являются Map,
+/// и пропускаем всё остальное.
+List<T> _asModelList<T>(
+  dynamic value,
+  T Function(Map<String, dynamic>) fromJson,
+) {
+  if (value is! List) return [];
+
+  return value
+      .where((e) => e is Map)
+      .map((e) => fromJson(Map<String, dynamic>.from(e as Map)))
+      .toList();
+}
+
+/// ------------------------------------------------------------
+/// МОДЕЛИ ОТВЕТА
+/// ------------------------------------------------------------
 
 /// Один показатель, который система сочла отклонённым.
 ///
@@ -37,10 +139,10 @@ class AbnormalValue {
   /// Создание объекта из JSON-словаря backend.
   factory AbnormalValue.fromJson(Map<String, dynamic> json) {
     return AbnormalValue(
-      name: json["name"] ?? "",
-      value: json["value"] ?? "",
-      status: json["status"] ?? "",
-      comment: json["comment"] ?? "",
+      name: _asString(json["name"]),
+      value: _asString(json["value"]),
+      status: _asString(json["status"]),
+      comment: _asString(json["comment"]),
     );
   }
 }
@@ -62,9 +164,33 @@ class BorderlineValue {
 
   factory BorderlineValue.fromJson(Map<String, dynamic> json) {
     return BorderlineValue(
-      name: json["name"] ?? "",
-      value: json["value"] ?? "",
-      comment: json["comment"] ?? "",
+      name: _asString(json["name"]),
+      value: _asString(json["value"]),
+      comment: _asString(json["comment"]),
+    );
+  }
+}
+
+/// Нормальный, но клинически значимый показатель.
+///
+/// Иногда показатель формально в норме,
+/// но всё равно полезен для общей интерпретации.
+class NormalRelevantValue {
+  final String name;
+  final String value;
+  final String comment;
+
+  NormalRelevantValue({
+    required this.name,
+    required this.value,
+    required this.comment,
+  });
+
+  factory NormalRelevantValue.fromJson(Map<String, dynamic> json) {
+    return NormalRelevantValue(
+      name: _asString(json["name"]),
+      value: _asString(json["value"]),
+      comment: _asString(json["comment"]),
     );
   }
 }
@@ -89,10 +215,10 @@ class PossibleCondition {
 
   factory PossibleCondition.fromJson(Map<String, dynamic> json) {
     return PossibleCondition(
-      name: json["name"] ?? "",
-      probabilityPercent: json["probability_percent"] ?? 0,
-      confidence: json["confidence"] ?? "",
-      comment: json["comment"] ?? "",
+      name: _asString(json["name"]),
+      probabilityPercent: _asInt(json["probability_percent"]),
+      confidence: _asString(json["confidence"]),
+      comment: _asString(json["comment"]),
     );
   }
 }
@@ -113,8 +239,8 @@ class RecommendedDoctor {
 
   factory RecommendedDoctor.fromJson(Map<String, dynamic> json) {
     return RecommendedDoctor(
-      specialist: json["specialist"] ?? "",
-      reason: json["reason"] ?? "",
+      specialist: _asString(json["specialist"]),
+      reason: _asString(json["reason"]),
     );
   }
 }
@@ -134,8 +260,8 @@ class AdditionalTest {
 
   factory AdditionalTest.fromJson(Map<String, dynamic> json) {
     return AdditionalTest(
-      name: json["name"] ?? "",
-      reason: json["reason"] ?? "",
+      name: _asString(json["name"]),
+      reason: _asString(json["reason"]),
     );
   }
 }
@@ -161,10 +287,10 @@ class MedicationDiscussionOption {
 
   factory MedicationDiscussionOption.fromJson(Map<String, dynamic> json) {
     return MedicationDiscussionOption(
-      category: json["category"] ?? "",
-      examples: List<String>.from(json["examples"] ?? const []),
-      comment: json["comment"] ?? "",
-      limitations: json["limitations"] ?? "",
+      category: _asString(json["category"]),
+      examples: _asStringList(json["examples"]),
+      comment: _asString(json["comment"]),
+      limitations: _asString(json["limitations"]),
     );
   }
 }
@@ -193,11 +319,10 @@ class MedicationExampleInfo {
 
   factory MedicationExampleInfo.fromJson(Map<String, dynamic> json) {
     return MedicationExampleInfo(
-      category: json["category"] ?? "",
-      activeIngredients:
-          List<String>.from(json["active_ingredients"] ?? const []),
-      exampleBrands: List<String>.from(json["example_brands"] ?? const []),
-      note: json["note"] ?? "",
+      category: _asString(json["category"]),
+      activeIngredients: _asStringList(json["active_ingredients"]),
+      exampleBrands: _asStringList(json["example_brands"]),
+      note: _asString(json["note"]),
     );
   }
 }
@@ -220,9 +345,9 @@ class CautionNote {
 
   factory CautionNote.fromJson(Map<String, dynamic> json) {
     return CautionNote(
-      context: json["context"] ?? "",
-      avoid: List<String>.from(json["avoid"] ?? const []),
-      reason: json["reason"] ?? "",
+      context: _asString(json["context"]),
+      avoid: _asStringList(json["avoid"]),
+      reason: _asString(json["reason"]),
     );
   }
 }
@@ -246,10 +371,9 @@ class DataQuality {
 
   factory DataQuality.fromJson(Map<String, dynamic> json) {
     return DataQuality(
-      isTextComplete: json["is_text_complete"] ?? false,
-      possibleOcrIssues:
-          List<String>.from(json["possible_ocr_issues"] ?? const []),
-      comment: json["comment"] ?? "",
+      isTextComplete: _asBool(json["is_text_complete"]),
+      possibleOcrIssues: _asStringList(json["possible_ocr_issues"]),
+      comment: _asString(json["comment"]),
     );
   }
 }
@@ -273,9 +397,9 @@ class AnalysisOverview {
 
   factory AnalysisOverview.fromJson(Map<String, dynamic> json) {
     return AnalysisOverview(
-      overallImpression: json["overall_impression"] ?? "",
-      mainConcerns: List<String>.from(json["main_concerns"] ?? const []),
-      dataQuality: DataQuality.fromJson(json["data_quality"] ?? const {}),
+      overallImpression: _asString(json["overall_impression"]),
+      mainConcerns: _asStringList(json["main_concerns"]),
+      dataQuality: DataQuality.fromJson(_asMap(json["data_quality"])),
     );
   }
 }
@@ -299,8 +423,8 @@ class UrgencyAssessment {
 
   factory UrgencyAssessment.fromJson(Map<String, dynamic> json) {
     return UrgencyAssessment(
-      level: json["level"] ?? "",
-      comment: json["comment"] ?? "",
+      level: _asString(json["level"]),
+      comment: _asString(json["comment"]),
     );
   }
 }
@@ -321,7 +445,7 @@ class AnalysisResult {
   final AnalysisOverview analysisOverview;
   final List<AbnormalValue> abnormalValues;
   final List<BorderlineValue> borderlineValues;
-  final List<BorderlineValue> normalButRelevantValues;
+  final List<NormalRelevantValue> normalButRelevantValues;
   final List<PossibleCondition> possibleConditions;
   final List<String> patternsAndConnections;
   final List<String> risks;
@@ -363,65 +487,93 @@ class AnalysisResult {
   ///
   /// Здесь мы преобразуем ответ backend в типизированную модель.
   /// Это даёт более устойчивый код, чем прямой доступ к Map по строковым ключам.
+  ///
+  /// ВАЖНО:
+  /// Все поля ниже парсятся через безопасные helper-функции.
+  /// Это защищает приложение от падений,
+  /// если AI где-то вернул немного не ту структуру.
   factory AnalysisResult.fromJson(Map<String, dynamic> json) {
     return AnalysisResult(
-      summary: json["summary"] ?? "",
+      summary: _asString(json["summary"]),
+
       analysisOverview: AnalysisOverview.fromJson(
-        json["analysis_overview"] ?? const {},
+        _asMap(json["analysis_overview"]),
       ),
-      abnormalValues: (json["abnormal_values"] as List? ?? const [])
-          .map((e) => AbnormalValue.fromJson(Map<String, dynamic>.from(e)))
-          .toList(),
-      borderlineValues: (json["borderline_values"] as List? ?? const [])
-          .map((e) => BorderlineValue.fromJson(Map<String, dynamic>.from(e)))
-          .toList(),
-      normalButRelevantValues:
-          (json["normal_but_relevant_values"] as List? ?? const [])
-              .map((e) => BorderlineValue.fromJson(Map<String, dynamic>.from(e)))
-              .toList(),
-      possibleConditions: (json["possible_conditions"] as List? ?? const [])
-          .map((e) => PossibleCondition.fromJson(Map<String, dynamic>.from(e)))
-          .toList(),
-      patternsAndConnections:
-          List<String>.from(json["patterns_and_connections"] ?? const []),
-      risks: List<String>.from(json["risks"] ?? const []),
-      recommendedDoctors:
-          (json["recommended_doctors"] as List? ?? const [])
-              .map((e) => RecommendedDoctor.fromJson(Map<String, dynamic>.from(e)))
-              .toList(),
-      additionalTests: (json["additional_tests"] as List? ?? const [])
-          .map((e) => AdditionalTest.fromJson(Map<String, dynamic>.from(e)))
-          .toList(),
-      medicationDiscussionOptions:
-          (json["medication_discussion_options"] as List? ?? const [])
-              .map(
-                (e) => MedicationDiscussionOption.fromJson(
-                  Map<String, dynamic>.from(e),
-                ),
-              )
-              .toList(),
-      medicationExamplesInfo:
-          (json["medication_examples_info"] as List? ?? const [])
-              .map(
-                (e) => MedicationExampleInfo.fromJson(
-                  Map<String, dynamic>.from(e),
-                ),
-              )
-              .toList(),
-      cautionNotes: (json["caution_notes"] as List? ?? const [])
-          .map((e) => CautionNote.fromJson(Map<String, dynamic>.from(e)))
-          .toList(),
-      possibleSupportOptions:
-          List<String>.from(json["possible_support_options"] ?? const []),
-      recommendations:
-          List<String>.from(json["recommendations"] ?? const []),
-      redFlags: List<String>.from(json["red_flags"] ?? const []),
+
+      abnormalValues: _asModelList(
+        json["abnormal_values"],
+        AbnormalValue.fromJson,
+      ),
+
+      borderlineValues: _asModelList(
+        json["borderline_values"],
+        BorderlineValue.fromJson,
+      ),
+
+      normalButRelevantValues: _asModelList(
+        json["normal_but_relevant_values"],
+        NormalRelevantValue.fromJson,
+      ),
+
+      possibleConditions: _asModelList(
+        json["possible_conditions"],
+        PossibleCondition.fromJson,
+      ),
+
+      patternsAndConnections: _asStringList(
+        json["patterns_and_connections"],
+      ),
+
+      risks: _asStringList(
+        json["risks"],
+      ),
+
+      recommendedDoctors: _asModelList(
+        json["recommended_doctors"],
+        RecommendedDoctor.fromJson,
+      ),
+
+      additionalTests: _asModelList(
+        json["additional_tests"],
+        AdditionalTest.fromJson,
+      ),
+
+      medicationDiscussionOptions: _asModelList(
+        json["medication_discussion_options"],
+        MedicationDiscussionOption.fromJson,
+      ),
+
+      medicationExamplesInfo: _asModelList(
+        json["medication_examples_info"],
+        MedicationExampleInfo.fromJson,
+      ),
+
+      cautionNotes: _asModelList(
+        json["caution_notes"],
+        CautionNote.fromJson,
+      ),
+
+      possibleSupportOptions: _asStringList(
+        json["possible_support_options"],
+      ),
+
+      recommendations: _asStringList(
+        json["recommendations"],
+      ),
+
+      redFlags: _asStringList(
+        json["red_flags"],
+      ),
+
       urgencyAssessment: UrgencyAssessment.fromJson(
-        json["urgency_assessment"] ?? const {},
+        _asMap(json["urgency_assessment"]),
       ),
-      missingImportantData:
-          List<String>.from(json["missing_important_data"] ?? const []),
-      disclaimer: json["disclaimer"] ?? "",
+
+      missingImportantData: _asStringList(
+        json["missing_important_data"],
+      ),
+
+      disclaimer: _asString(json["disclaimer"]),
     );
   }
 }

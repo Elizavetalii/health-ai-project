@@ -1,22 +1,28 @@
+# ============================================================
+# Точка входа backend-сервиса Health AI
+# ============================================================
+
+# FastAPI — основной фреймворк сервиса.
 from fastapi import FastAPI
+
+# CORSMiddleware — механизм, позволяющий frontend-приложениям безопасно взаимодействовать с API.
 from fastapi.middleware.cors import CORSMiddleware
 
-# Подключаем роуты (маршруты API), которые лежат отдельно.
-# Благодаря этому main.py остаётся коротким и чистым.
+# Подключение API-роутов
 from app.api.routes import router
 
-# Подключаем название приложения из конфигурации.
+# Конфигурация приложения
 from app.core.config import APP_TITLE
 
-# Создаём FastAPI приложение.
-# Это главный объект backend-сервиса.
+
+# Инициализация FastAPI приложения
 app = FastAPI(title=APP_TITLE)
 
-# Подключаем CORS.
-# Это нужно, чтобы frontend (например Flutter, React или другой клиент)
-# мог отправлять запросы на backend.
-# Сейчас разрешено всё — это удобно для разработки.
-# Для production обычно доступ ограничивают конкретными доменами.
+
+# ------------------------------------------------------------
+# CORS настройка (разрешает frontend обращаться к backend)
+# В production желательно ограничить allow_origins
+# ------------------------------------------------------------
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -25,6 +31,15 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Подключаем все маршруты из файла routes.py.
-# После этого endpoint'ы, например /analyze, становятся доступными.
+
+# Подключение всех API маршрутов (например /analyze)
 app.include_router(router)
+
+
+# Простой endpoint для проверки работы сервиса (health check)
+@app.get("/")
+def root():
+    return {
+        "status": "ok",
+        "service": "Health AI Backend",
+    }

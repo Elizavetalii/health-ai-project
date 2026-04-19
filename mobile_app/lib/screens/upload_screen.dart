@@ -9,8 +9,7 @@ import '../generated/app_localizations.dart'; // Локализованные с
 import '../main.dart'; // Доступ к смене языка через корневой виджет приложения
 import '../models/analysis_result.dart'; // Типизированная модель результата анализа
 import '../services/analysis_api_service.dart'; // Сервис отправки файла на backend
-import '../l10n/app_en.arb'; // Сервис 
-import '../l10n/app_ru.arb'; // Сервис 
+
 
 /// Главный экран приложения.
 ///
@@ -268,6 +267,7 @@ class _UploadScreenState extends State<UploadScreen> {
           errorText = response.message ?? 'Unknown error';
         });
       }
+ 
     } catch (e) {
       setState(() {
         errorText = currentLanguageCode == 'ru'
@@ -279,6 +279,8 @@ class _UploadScreenState extends State<UploadScreen> {
         isLoading = false;
       });
     }
+    
+
   }
 
 /// Возвращает локализованную подпись уровня срочности.

@@ -42,8 +42,6 @@ class AnalysisApiService {
     required String language,
     required String userComment,
   }) async {
-    // Формируем multipart/form-data:
-    // файл + параметры формы.
     final formData = FormData.fromMap({
       'file': await MultipartFile.fromFile(
         file.path,
@@ -53,36 +51,39 @@ class AnalysisApiService {
       'user_comment': userComment,
     });
 
-    // Отправляем POST-запрос на backend.
     final response = await _dio.post(
       apiUrl,
       data: formData,
     );
 
-    // Упрощаем доступ к данным ответа.
-    final data = response.data;
+    // response.data не всегда обязан быть Map,
+    // поэтому сначала безопасно проверяем тип.
+    final rawData = response.data;
+    final data = rawData is Map
+        ? Map<String, dynamic>.from(rawData)
+        : <String, dynamic>{};
 
-    // Если backend сообщил об успешной обработке.
     if (data['success'] == true) {
+      // analysis_result тоже читаем безопасно.
+      final rawAnalysis = data['analysis_result'];
+      final analysisMap = rawAnalysis is Map
+          ? Map<String, dynamic>.from(rawAnalysis)
+          : <String, dynamic>{};
+
+      // meta-данные также могут отсутствовать или быть не map.
+      final rawMeta = data['meta'];
+      final metaMap = rawMeta is Map
+          ? Map<String, dynamic>.from(rawMeta)
+          : <String, dynamic>{};
+
       return AnalysisApiResponse(
         success: true,
-
-        // Преобразуем JSON в типизированную модель результата.
-        analysisResult: AnalysisResult.fromJson(
-          Map<String, dynamic>.from(data['analysis_result']),
-        ),
-
-        // Meta-данные могут отсутствовать, поэтому проверяем тип.
-        meta: data['meta'] is Map
-            ? Map<String, dynamic>.from(data['meta'])
-            : {},
-
+        analysisResult: AnalysisResult.fromJson(analysisMap),
+        meta: metaMap,
         message: data['message']?.toString(),
       );
     }
 
-    // Если backend вернул ошибку, всё равно отдаём
-    // единый нормализованный объект ответа.
     return AnalysisApiResponse(
       success: false,
       analysisResult: null,

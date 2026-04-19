@@ -7,6 +7,8 @@ from fastapi import APIRouter, File, Form, UploadFile
 from app.core.config import ALLOWED_EXTENSIONS
 
 # Импортируем функцию анализа текста.
+# Важно: она возвращает не один объект, а кортеж:
+# (analysis_result, source_type)
 from app.services.analysis_service import analyze_text
 
 # Импортируем функцию извлечения текста из файла.
@@ -21,7 +23,9 @@ router = APIRouter()
 def root():
     """
     Простой тестовый endpoint.
-    Если открыть /, можно понять, что backend вообще работает.
+
+    Если открыть /, можно быстро проверить,
+    что backend вообще запущен и отвечает.
     """
     return {"message": "Backend is working"}
 
@@ -44,8 +48,8 @@ async def analyze_file(
     1. Проверяет файл
     2. Сохраняет его временно
     3. Извлекает текст
-    4. Отправляет текст в анализ
-    5. Возвращает JSON с результатом
+    4. Передаёт текст в сервис анализа
+    5. Возвращает JSON с результатом и meta-информацией
     """
 
     # Если имя файла отсутствует — значит файл не был выбран.
@@ -76,7 +80,9 @@ async def analyze_file(
     try:
         # Пытаемся извлечь текст из файла.
         extracted_text = extract_text_from_file(temp_file_path, file_extension)
-
+        print("EXTRACTED TEXT START".center(80, "="))
+        print(extracted_text[:5000])
+        print("EXTRACTED TEXT END".center(80, "="))
         # Если текст пустой, значит распознать файл не удалось.
         if not extracted_text.strip():
             return {
@@ -87,7 +93,12 @@ async def analyze_file(
             }
 
         # Передаём извлечённый текст в сервис анализа.
-        analysis_result = analyze_text(
+        #
+        # ВАЖНО:
+        # analyze_text(...) возвращает кортеж:
+        # - analysis_result: итоговый JSON результата
+        # - source_type: deepseek или local_fallback
+        analysis_result, source_type = analyze_text(
             extracted_text=extracted_text,
             user_comment=user_comment,
             language=language,
@@ -101,6 +112,7 @@ async def analyze_file(
             "message": "Анализ успешно обработан",
             "analysis_result": analysis_result,
             "meta": {
+                "source_type": source_type,
                 "user_comment_used": bool(user_comment.strip()),
                 "file_type": file_extension.replace(".", ""),
                 "extracted_text_length": len(extracted_text),

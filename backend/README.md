@@ -33,32 +33,45 @@ Health AI — это backend-сервис на FastAPI, который прин�
 
 # 🏗 Архитектура проекта
 
-
 app/
 │
-├── main.py # Точка входа FastAPI
+├── main.py                        # Точка входа FastAPI
 │
-├── api/ # API-роуты
-│ └── routes.py
+├── api/
+│   └── routes.py                 # HTTP-роуты
 │
-├── core/ # Базовая логика
-│ ├── config.py # Конфигурация (API ключи, URL)
-│ └── prompts.py # AI-промты (ОЧЕНЬ ВАЖНЫЙ ФАЙЛ)
+├── core/
+│   ├── __init__.py
+│   ├── config.py                 # Конфигурация проекта
+│   └── prompts.py                # AI-промты и сборка запроса к модели
 │
-├── services/ # Бизнес-логика
-│ ├── ai_service.py # Работа с DeepSeek API
-│ ├── analysis_service.py # Основной анализ (оркестрация)
-│ ├── ocr_service.py # Извлечение текста из файлов
-│ └── fallback_service.py # Локальный анализ без AI
+├── models/
+│   ├── __init__.py
+│   └── schemas.py                # Pydantic-схемы ответа
 │
-├── models/ # Модели данных
-│ └── schemas.py # Pydantic модели ответа
+├── services/
+│   ├── __init__.py
+│   ├── ai_service.py             # Работа с DeepSeek API
+│   ├── analysis_service.py       # Основная логика анализа
+│   ├── fallback_service.py       # Локальный fallback-анализ
+│   ├── ocr_service.py            # Точка входа для OCR-извлечения
+│   ├── validation_service.py     # Дополнительная валидация результатов
+│   │
+│   └── ocr/                      # OCR-модуль
+│       ├── __init__.py
+│       ├── constants.py          # Константы, ключевые слова, маркеры
+│       ├── extractors.py         # Извлечение текста по типам файлов
+│       ├── image_utils.py        # Предобработка изображений
+│       ├── lab_parser.py         # Структурирование лабораторных строк
+│       ├── ocr_engine.py         # OCR через Tesseract
+│       └── text_utils.py         # Очистка и нормализация OCR-текста
 │
-├── utils/ # Вспомогательные функции
-│ ├── parsing_utils.py # Парсинг JSON от AI
-│ └── file_utils.py # Работа с файлами
+├── utils/
+│   ├── __init__.py
+│   ├── file_utils.py             # Работа с файлами, байтами, CSV
+│   └── parsing_utils.py          # Извлечение JSON из ответа AI
 │
-└── init.py # Делает app пакетом Python
+└── __init__.py
 
 
 ---
