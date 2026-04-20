@@ -1,18 +1,39 @@
-# app/services/analysis_service.py
-
-# Импортируем функцию, которая отправляет запрос в AI-модель.
-# Она возвращает либо словарь с ответом модели, либо None,
-# если AI недоступен или ответ не удалось корректно получить.
 from app.services.ai_service import analyze_with_deepseek
-
-# Импортируем:
-# - local_medical_analysis: резервный локальный анализ
-# - normalize_ai_result: приведение AI-ответа к стабильной структуре
 from app.services.fallback_service import local_medical_analysis, normalize_ai_result
-
-# Импортируем слой дополнительной проверки результата AI
-# по исходному OCR-тексту.
 from app.services.validation_service import validate_ai_result_against_extracted_text
+
+
+def build_text_for_llm(extracted_text: str) -> str:
+    """
+    Готовим текст для AI:
+    - убираем мусор
+    - ограничиваем размер
+    """
+
+    if not extracted_text:
+        return ""
+
+    lines = extracted_text.split("\n")
+
+    cleaned_lines = []
+
+    for line in lines:
+        line = line.strip()
+
+        # ❌ убираем мусор
+        if not line:
+            continue
+        if len(line) < 3:
+            continue
+        if any(x in line.lower() for x in ["telegram", "whatsapp", "http"]):
+            continue
+
+        cleaned_lines.append(line)
+
+    # 👉 берём только первые 100 строк (хватает с головой)
+    cleaned_lines = cleaned_lines[:100]
+
+    return "\n".join(cleaned_lines)
 
 
 def analyze_text(
@@ -20,27 +41,22 @@ def analyze_text(
     user_comment: str = "",
     language: str = "ru",
 ) -> tuple[dict, str]:
-    """
-    Главная orchestration-функция анализа.
 
-    Логика:
-    1. Пытаемся получить результат от DeepSeek.
-    2. Если AI ответил — нормализуем его.
-    3. Потом дополнительно валидируем часть показателей
-       по исходному OCR-тексту.
-    4. Если AI не ответил или вернул None — используем локальный fallback.
+    # ✅ готовим текст
+    text_for_llm = build_text_for_llm(extracted_text)
 
-    Возвращает:
-    - итоговый результат анализа
-    - источник обработки: deepseek / local_fallback
-    """
+    # ❗ fallback если вдруг пусто
+    if not text_for_llm:
+        text_for_llm = extracted_text[:2000]
 
+    # 🔥 вызываем AI
     ai_result = analyze_with_deepseek(
-        extracted_text=extracted_text,
+        extracted_text=text_for_llm,
         user_comment=user_comment,
         language=language,
     )
 
+    # ✅ если AI отработал
     if ai_result is not None:
         print("Using DeepSeek result")
 
@@ -53,6 +69,7 @@ def analyze_text(
 
         return validated_result, "deepseek"
 
+    # ❗ fallback
     print("Using local fallback result")
 
     fallback_result = local_medical_analysis(
